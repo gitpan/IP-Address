@@ -11,4 +11,10 @@ Revision history for Perl extension IP::Address.
 0.03  Wed Jul 14
 	- Added ->first and ->last methods. Version changed to 0.03.
 
-
+1.00  Wed Dec 05 2000
+	- The following changes where suggested by Todd Caine 
+	<todd_caine@eli.net> (Thanks for the feedback)
+	- Implemented ->new_subnet. Version changed to 1.00.
+	- less croak()ing when improper input is fed to the
+	module. A more consistent 'undef' is returned now
+	instead to allow the user to better handle the error.

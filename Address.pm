@@ -2,6 +2,7 @@
 ## IP::Address - Help to work with IP addresses and masks
 ##
 ## lem@cantv.net - 19990712
+## lem@cantv.net - 20000105 - Changes suggested by Todd Caine
 ##
 ##############
 ##############
@@ -26,7 +27,7 @@ require Exporter;
 	
 );
 
-$VERSION = '0.03';
+$VERSION = '1.00';
 
 
 # Preloaded methods go here.
@@ -49,7 +50,7 @@ sub _valid_address {
 
 sub _pack_address {
     my $ip = shift;
-    croak "attempt to unpack invalid address $ip" 
+    croak "attempt to pack invalid address $ip" 
 	unless _valid_address $ip;
     my @octet = split(/\./, $ip, 4);
     my $result = '';
@@ -83,7 +84,7 @@ sub _unpack_address {
 
 sub _bits_to_mask {
     my $bits = shift;
-    croak "Invalid mask len $bits" if $bits < 0 or $bits > 32;
+#    croak "Invalid mask len $bits" if $bits < 0 or $bits > 32;
     my $i;
     my $j;
     my $count = 0;
@@ -125,8 +126,8 @@ sub new {
     my ($ip, $mask) = @_;
     $ip = "0.0.0.0" unless defined $ip;
     if ($ip =~ /\/([\d\.]+)$/) {
-	croak "inconsistent mask. Use only one form of netmask"
-	    if defined $mask;
+#	croak "inconsistent mask. Use only one form of netmask"
+	return undef if defined $mask;
 	my $m = $1;
 	$ip =~ s/\/\d+$//;
 	$mask = $m;
@@ -136,15 +137,29 @@ sub new {
 	$mask = _pack_address $mask;
     }
     else {
+	return undef if ($mask < 0 or $mask > 32);
 	$mask = _bits_to_mask $mask;
     }
     if (not _valid_address $ip) {
-	croak "invalid IP address";
+	return undef;
+#	croak "invalid IP address";
     }
     my $self = { 'addr' => _pack_address($ip),
 		 'mask' => $mask
 		 };
     bless $self, $class;
+}
+
+sub new_subnet {
+    my $ip = new @_;
+    return undef unless $ip;
+    my $subnet = $ip->network;
+    if ($ip->addr_to_string eq $subnet->addr_to_string) {
+	return $ip;
+    }
+    else {
+	return undef;
+    }
 }
 
 sub to_string {
@@ -329,6 +344,10 @@ IP::Address - Manipulate IP Addresses easily
   my $othersubnet = new IP::Address("10.0.0.0", "24");
   my $yetanothersubnet = new IP::Address "10.0.0.0/24";
 
+  # A proper subnet (or undef if any host but is set)
+  my $subnet_ok = new_subnet IP::Address("10.0.0.0", "24");
+  my $subnet_undef = new_subnet IP::Address("10.0.0.1", "24");
+
   # A string representation of an address or subnet
   print "My ip address is ", $ip->to_string, "\n";
 
@@ -413,7 +432,8 @@ by using it you accept any and all the liability.
 
 =head1 AUTHOR
 
-Luis E. Munoz <lem@cantv.net>
+Luis E. Munoz <lem@cantv.net>. ->new_subnet suggested by Todd Caine
+<todd_caine@eli.net>
 
 =head1 SEE ALSO
 
