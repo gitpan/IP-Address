@@ -12,9 +12,14 @@ Revision history for Perl extension IP::Address.
 	- Added ->first and ->last methods. Version changed to 0.03.
 
 1.00  Wed Dec 05 2000
-	- The following changes where suggested by Todd Caine 
-	<todd_caine@eli.net> (Thanks for the feedback)
 	- Implemented ->new_subnet. Version changed to 1.00.
 	- less croak()ing when improper input is fed to the
 	module. A more consistent 'undef' is returned now
 	instead to allow the user to better handle the error.
+
+1.10  Wed May 02 2000
+	- As per MARNIX A. VAN AMMERS [mav6@ns02.comp.pge.com]
+	suggestion, changed the syntax of the loop in host_enum
+	to be the same of the enum method.
+	- Fixed the MS-DOS ^M at the end-of-line problem. This
+	should make the module easier to use for *nix users.

@@ -2,7 +2,6 @@
 ## IP::Address - Help to work with IP addresses and masks
 ##
 ## lem@cantv.net - 19990712
-## lem@cantv.net - 20000105 - Changes suggested by Todd Caine
 ##
 ##############
 ##############
@@ -27,7 +26,7 @@ require Exporter;
 	
 );
 
-$VERSION = '1.00';
+$VERSION = '1.10';
 
 
 # Preloaded methods go here.
@@ -200,7 +199,7 @@ sub host_enum {
     my $last = vec($self->broadcast->{'addr'}, 0, 32);
     my $i;
     my @result;
-    foreach $i ($first .. $last) {
+    for($i = $first; $i <= $last; ++$i) {
 	my $addr = '';
 	vec($addr, 0, 32) = $i;
 	push @result, $self->new(_unpack_address($addr), "32");
@@ -432,8 +431,7 @@ by using it you accept any and all the liability.
 
 =head1 AUTHOR
 
-Luis E. Munoz <lem@cantv.net>. ->new_subnet suggested by Todd Caine
-<todd_caine@eli.net>
+Luis E. Munoz <lem@cantv.net>
 
 =head1 SEE ALSO
 
