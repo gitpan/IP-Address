@@ -8,6 +8,7 @@ Revision history for Perl extension IP::Address.
 	- Multiple changes to fix endiannes issues. This code is now
 	moderately tested on Wintel and Sun/Solaris boxes.
 
-	
+0.03  Wed Jul 14
+	- Added ->first and ->last methods. Version changed to 0.03.
 
 

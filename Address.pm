@@ -26,7 +26,7 @@ require Exporter;
 	
 );
 
-$VERSION = '0.02';
+$VERSION = '0.03';
 
 
 # Preloaded methods go here.
@@ -213,10 +213,34 @@ sub network {
 		_unpack_address($self->{'mask'}));
 }
 
+sub first {
+    my $self = shift;
+    my $addr = '';
+    return $self if (_mask_to_bits($self->{'mask'}) == 32);
+    my $subnet = $self->new (_unpack_address($self->{'addr'} 
+					     & $self->{'mask'}), 
+		_unpack_address($self->{'mask'}));
+    vec($addr, 0, 32) = vec($subnet->{'addr'}, 0, 32) + 1;
+    $self->new (_unpack_address($addr), 
+		_unpack_address($self->{'mask'}));
+}
+
 sub broadcast {
     my $self = shift;
     $self->new (_unpack_address($self->{'addr'} 
 				| _negated_mask $self->{'mask'}),
+		_unpack_address($self->{'mask'}));
+}
+
+sub last {
+    my $self = shift;
+    my $addr = '';
+    return $self if (_mask_to_bits($self->{'mask'}) == 32);
+    my $subnet = $self->new (_unpack_address($self->{'addr'} 
+					     | _negated_mask $self->{'mask'}),
+		_unpack_address($self->{'mask'}));
+    vec($addr, 0, 32) = vec($subnet->{'addr'}, 0, 32) - 1;
+    $self->new (_unpack_address($addr), 
 		_unpack_address($self->{'mask'}));
 }
 
@@ -353,6 +377,10 @@ IP::Address - Manipulate IP Addresses easily
   @range = $ip->range(@dont_know_which_is_larger);
 				# From the smallest on the list + $ip to
 				# the largest
+
+  # Usable addresses in a subnet
+  $first_address = $subnet->first;
+  $last_address = $subnet->last;
 
 =head1 DESCRIPTION
 

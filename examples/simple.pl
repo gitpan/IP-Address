@@ -57,12 +57,26 @@ $addr[1] = "161.196.66.2/255.255.255.128";
 $addr[2] = "200.44.32.12/22";
 $addr[3] = "200.11.128.1/17";
 $addr[4] = "224.16.5.172/30";
+$addr[5] = "10.128.10.11";
+$addr[6] = "0.0.0.0/0";
 
 foreach $i (@addr) {
 
     $ip = new IP::Address $i;
     print "* ", $i, " should be ", $ip->to_string, "(", $ip->addr_to_string,
     " / ", IP::Address::_unpack_address($ip->{'mask'}), ")\n" ;
+
+}
+
+print <<EOF;
+	Subnet interpretation
+EOF
+    ;
+
+foreach $i (@addr) {
+    $ip = new IP::Address $i;
+    print "* First in subnet ", $i, " is ", $ip->first->to_string, 
+    ", last is ", $ip->last->to_string, "\n";
 
 }
 
