@@ -23,3 +23,7 @@ Revision history for Perl extension IP::Address.
 	to be the same of the enum method.
 	- Fixed the MS-DOS ^M at the end-of-line problem. This
 	should make the module easier to use for *nix users.
+
+1.20  Sun Jun 25 2000
+	- Implemented ->compact and ->expand methods.
+

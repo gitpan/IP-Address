@@ -38,3 +38,4 @@ else {
     print "ok 5\n";
 }
 
+exit 0;

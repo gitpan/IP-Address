@@ -26,7 +26,7 @@ require Exporter;
 	
 );
 
-$VERSION = '1.10';
+$VERSION = '1.20';
 
 
 # Preloaded methods go here.
@@ -207,7 +207,161 @@ sub host_enum {
     @result;
 }
 
-sub enum {    my $self = shift;
+sub _arrange_compact_list {
+    my @addr = @_;
+    @addr = sort {
+	new Math::BigInt(vec($a->{'mask'}, 0, 32)) 
+	    <=> new Math::BigInt(vec($b->{'mask'}, 0, 32))
+	} @addr;
+    my @result;
+    
+  PROSPECT:
+    foreach my $prospect (@addr) {
+	foreach my $cur (@result) {
+	    if ($cur->contains($prospect)) {
+		next PROSPECT;
+	    }
+	}
+	push @result, $prospect;
+    }
+    
+    sort {
+	new Math::BigInt(vec($a->{'addr'}, 0, 32)) 
+	    <=> new Math::BigInt(vec($b->{'addr'}, 0, 32))
+	    } @result;
+}
+
+sub _can_split {
+    my $a = shift;
+    my $bits = shift;
+
+    return ()			# $bits must make sense
+	unless $bits > 0 and $bits < 31;
+
+    my $m_len = _mask_to_bits($a->{'mask'});
+
+    return ()			# Mask length must be < $bits
+	unless  $m_len < $bits;
+
+    $m_len ++;
+
+    my $a1 = new IP::Address(_unpack_address($a->network->{'addr'}) 
+			     . "/" . $m_len);
+
+    my $a2 = new IP::Address(_unpack_address($a->broadcast->{'addr'}) 
+			     . "/" . $m_len)->network;
+
+    if ($m_len == $bits) {
+	return ($a1, $a2);
+    }
+    
+    return (_can_split($a1, $bits), _can_split($a2, $bits));
+
+}
+
+sub _can_merge {
+    my $a = shift;
+    my $b = shift;
+    my $bits = shift;
+
+    return 0			# Masks must be equal
+	unless vec($a->{'mask'}, 0, 32) == vec($b->{'mask'}, 0, 32);
+
+    return 0			# Mask lenght must be > 0
+	if _mask_to_bits($a->{'mask'}) == 0;
+
+    return 0			# Mask length must be >= $bits
+	if _mask_to_bits($a->{'mask'}) < $bits;
+    
+    my $masklen = _mask_to_bits($a->{'mask'}) - 1;
+    my $container = new IP::Address 
+	_unpack_address($a->{'addr'}) . "/" 
+	    . $masklen;
+
+    return 0			# Both must be contained in the same
+				# supernet
+	unless $container->contains($a)
+	    and $container->contains($b);
+
+    $container;
+}
+
+sub expand {
+    my $bits = shift;
+    my @addr = @_;
+
+    if (@addr == 1 and scalar $addr[0]) {
+	my $b = $bits;
+	$bits = $addr[0];
+	$addr[0] = $b;
+    }
+
+    @addr = _arrange_compact_list(@addr);
+    my $changes = 1;
+
+    if (_valid_address $bits) {
+	$bits = _mask_to_bits _pack_address $bits;
+    }
+
+    croak "Invalid bit length ($bits)" if $bits < 0 or $bits > 32;
+
+    my $a;
+    my $b;
+
+    while ($changes) {
+	$changes = 0;
+
+	for (my $i = 0; $i <= $#addr; $i++) {
+	    $a = $addr[$i];
+
+	    if (my @subnets = _can_split $a, $bits) {
+
+		@addr = (@addr[0 .. $i - 1], 
+			 @subnets, 
+			 @addr[$i + 1 .. $#addr]);
+
+		$i += $#subnets;
+		next;
+	    } 
+
+	    $b = $addr[$i + 1];
+	    if (my $container = _can_merge $a, $b, $bits) {
+		$addr[$i] = $container;
+		$changes = 1;
+		next;
+	    }
+	}
+	@addr = _arrange_compact_list(@addr) if $changes;
+    }
+    return @addr;
+    
+}
+
+sub compact {
+    my @addr = _arrange_compact_list(@_);
+    my $changes = 1;
+
+    my $a;
+    my $b;
+
+    while ($changes) {
+	$changes = 0;
+	for (my $i = 0; $i < $#addr; $i++) {
+	    $a = $addr[$i];
+	    $b = $addr[$i + 1];
+	    if (my $container = _can_merge $a, $b, 0) {
+		$addr[$i] = $container;
+		$changes = 1;
+		next;
+	    }
+	}
+	@addr = _arrange_compact_list(@addr) if $changes;
+    }
+    return @addr;
+}
+
+sub enum {
+    my $self = shift;
     my $first = vec($self->network->{'addr'}, 0, 32);
     my $last = vec($self->broadcast->{'addr'}, 0, 32);
     my $i;
@@ -399,6 +553,12 @@ IP::Address - Manipulate IP Addresses easily
   # Usable addresses in a subnet
   $first_address = $subnet->first;
   $last_address = $subnet->last;
+
+  # Compact subnets or addresses into the largest possible CIDR block
+  @compact_block = IP::Address::compact(@many_small_ip_address_blocks);
+
+  # Split a set of blocks into smaller subnets
+  @small_subnets = IP::Address::expand(@ip_address_blocks);
 
 =head1 DESCRIPTION
 

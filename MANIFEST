@@ -4,5 +4,6 @@ MANIFEST
 Makefile.PL
 README
 examples/example.pl
+examples/expand.pl
 examples/simple.pl
 t/1.t

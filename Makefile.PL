@@ -4,4 +4,5 @@ use ExtUtils::MakeMaker;
 WriteMakefile(
     'NAME'	=> 'IP::Address',
     'VERSION_FROM' => 'Address.pm', # finds $VERSION
+    'PREREQ_PM' => { 'Math::BigInt' => 0, },
 );
