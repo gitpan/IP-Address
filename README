@@ -1,0 +1,198 @@
+
+
+
+User Contributed Perl Documentation                IP::Address(3)
+
+
+
+NNNNAAAAMMMMEEEE
+     IP::Address - Manipulate IP Addresses easily
+
+SSSSYYYYNNNNOOOOPPPPSSSSIIIISSSS
+       use IP::Address qw($Use_CIDR_Notation $Always_Display_Mask);
+
+       # Initialization of IP::Address objects
+       my $ip = new IP::Address "10.0.0.1";
+       my $subnet = new IP::Address("10.0.0.0", "255.255.255.0");
+       my $othersubnet = new IP::Address("10.0.0.0", "24");
+       my $yetanothersubnet = new IP::Address "10.0.0.0/24";
+
+       # A string representation of an address or subnet
+       print "My ip address is ", $ip->to_string, "\n";
+
+       # Just the string or the mask part...
+       print "My ip address alone is ", $ip->addr_to_string, "\n";
+       print "and my netmask is ", $ip->mask_to_string, "\n";
+
+       # Enumeration of all the addresses within a given subnet, keeping
+       # the original mask
+       my @hosts = $subnet->enum;
+       for $i (@hosts) {
+           print "address ", $i->to_string,
+           " belongs to subnet ", $subnet->to_string, "\n";
+       }
+
+       # You can also produce the list of host addresses in a given subnet
+       my @hosts = $subnet->host_enum;
+       for $i (@hosts) {
+           print "Host ", $i->to_string,
+           " is in subnet ", $subnet->to_string, "\n";
+       }
+
+       # This calculates network and broadcast addresses for a subnet
+       my $network = $subnet->network;
+       my $broadcast = $subnet->broadcast;
+       print "Subnet ", $subnet->to_string, " has broadcast address ",
+         $broadcast->to_string, " and network number ", $network->to_string,
+         "\n";
+
+       # Checks to see if a host address or subnet is contained within another
+       # subnet
+       if ($subnet->contains $ip) {
+           print "Host ", $ip->to_string, " is contained in ",
+           $subnet->to_string, "\n";
+       }
+
+       # Masks and address components can be copied from object to object
+       $ip1->set_addr($ip2);
+       $ip1->set_mask($subnet);
+
+
+
+
+12/Jul/99       Last change: perl 5.005, patch 02               1
+
+
+
+
+
+
+User Contributed Perl Documentation                IP::Address(3)
+
+
+
+       # Ammount of hosts in a subnet can also be easily calculated
+       $max_hosts_in_subnet = $subnet->how_many - 2;
+
+       # A range of IP Addresses
+       @range = $ip->range($final_ip); # From $ip to $final_ip
+       @range = $ip->range(@dont_know_which_is_larger);
+                                     # From the smallest on the list + $ip to
+                                     # the largest
+
+
+DDDDEEEESSSSCCCCRRRRIIIIPPPPTTTTIIIIOOOONNNN
+     This module provides a simple interface to the tedious bit
+     manipulation involved when handling IP address calculations.
+     It also helps by performing range comparisons between
+     subnets as well as other frequently used functions.
+
+     Most of the primitive functions return an IP::Address
+     object.
+
+     The variables $$$$UUUUsssseeee____CCCCIIIIDDDDRRRR____NNNNoooottttaaaattttiiiioooonnnn
+      and $$$$AAAAllllwwwwaaaayyyyssss____DDDDiiiissssppppllllaaaayyyy____MMMMaaaasssskkkk
+      affect how the ->to_string function will present its
+     result. The names are hopefully intuitive enough. Note that
+     IP addresses are not properly compacted (ie, 200.44.0/18 is
+     written as 200.44.0.0/18) because this adapts to the widely
+     adopted but incorrect notation. Perhaps a later version will
+     include a variable to change this.
+
+     This code has not been widely tested yet. Endianness
+     problems might very well exist. Please email the author if
+     such problems are found.
+
+     This software is (c) Luis E. Munoz. It can be used under the
+     terms of the perl artistic license provided that proper
+     credit is preserved and that the original documentation is
+     not removed.
+
+     This software comes with the same warranty as perl itself
+     (ie, none), so by using it you accept any and all the
+     liability.
+
+AAAAUUUUTTTTHHHHOOOORRRR
+     Luis E. Munoz <lem@cantv.net>
+
+SSSSEEEEEEEE AAAALLLLSSSSOOOO
+     _p_e_r_l(1).
+
+
+
+
+
+
+
+
+
+12/Jul/99       Last change: perl 5.005, patch 02               2
+
+
+
+
+
+
+User Contributed Perl Documentation                IP::Address(3)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+12/Jul/99       Last change: perl 5.005, patch 02               3
+
+
+
+
+
+

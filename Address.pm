@@ -14,9 +14,11 @@ use vars qw($VERSION @ISA @EXPORT @EXPORT_OK $Use_CIDR_Notation
 	    $Always_Display_Mask);
 use Carp;
 
+use Math::BigInt;
+
 require Exporter;
 
-@ISA = qw(Exporter AutoLoader);
+@ISA = qw(Exporter);
 # Items to export into callers namespace by default. Note: do not export
 # names by default without a very good reason. Use EXPORT_OK instead.
 # Do not simply export all your public functions/methods/constants.
@@ -24,7 +26,7 @@ require Exporter;
 	
 );
 
-$VERSION = '0.01';
+$VERSION = '0.02';
 
 
 # Preloaded methods go here.
@@ -50,11 +52,15 @@ sub _pack_address {
     croak "attempt to unpack invalid address $ip" 
 	unless _valid_address $ip;
     my @octet = split(/\./, $ip, 4);
-    my $result = 0;
-    my $i;
-    foreach $i (0..$#octet) {
-	$result <<= 8;
-	$result += $octet[$i];
+    my $result = '';
+    my $octet = '';
+    my $i; 
+    my $j;
+    foreach $j (0..3) {
+	vec($octet, 0, 8) = $octet[$j];
+	foreach $i (0 .. 7) {
+	    vec($result, $i + 8 * $j, 1) = vec($octet, $i, 1);
+	}
     }
     $result;
 }
@@ -62,11 +68,15 @@ sub _pack_address {
 sub _unpack_address {
     my $pack = shift;
     my $i;
+    my $j;
     my $result = '';
-    foreach $i (3, 2, 1, 0) {
-	$result = '.' . $result if $i < 3;
-	$result = ($pack & 0xFF) . $result;
-	$pack >>= 8;
+    foreach $j (0..3) {
+	my $octet = '';
+	foreach $i (0..7) {
+	    vec($octet, $i, 1) = vec($pack, $i + 8 * $j, 1);
+	}
+	$result .= '.' if length $result;
+	$result .= vec($octet, 0, 8);
     }
     $result;
 }
@@ -75,9 +85,13 @@ sub _bits_to_mask {
     my $bits = shift;
     croak "Invalid mask len $bits" if $bits < 0 or $bits > 32;
     my $i;
-    my $result = 0;
-    foreach  $i (reverse 32 - $bits..32) {
-	$result += 2 ** $i;
+    my $j;
+    my $count = 0;
+    my $result = '';
+    foreach $i (0..3) {
+	foreach $j (reverse 0..7) {
+	    vec($result, $i * 8 + $j, 1) = ($count++ < $bits);
+	}
     }
     $result;
 }
@@ -87,24 +101,20 @@ sub _mask_to_bits {
     my $i;
     my $result = 0;
     foreach $i (0..31) {
-	my $bit = $mask & 0x1;
-	croak "non-contiguous mask" if !$bit and $result;
+	my $bit = vec($mask, $i, 1);
+#	croak "non-contiguous mask" if !$bit and $result;
 	$result += $bit;
-	$mask >>= 1;
     }
     $result;
 }
 
 sub _negated_mask {
     my $mask = shift;
-    my $nmask = 0;
+    my $nmask = '';
     my $i;
     my $pack = shift;
-    my $i;
     foreach $i (0..31) {
-	my $bit = $mask & 0x1;
-	$nmask += !$bit * 2 ** $i;
-	$mask >>= 1;
+	vec($nmask, $i, 1) = !vec($mask, $i, 1);
     }
     $nmask;
 }
@@ -169,6 +179,34 @@ sub addr_to_string {
     _unpack_address($self->{'addr'});
 }
 
+sub host_enum {
+    my $self = shift;
+    my $first = vec($self->network->{'addr'}, 0, 32);
+    my $last = vec($self->broadcast->{'addr'}, 0, 32);
+    my $i;
+    my @result;
+    foreach $i ($first .. $last) {
+	my $addr = '';
+	vec($addr, 0, 32) = $i;
+	push @result, $self->new(_unpack_address($addr), "32");
+    }
+    @result;
+}
+
+sub enum {    my $self = shift;
+    my $first = vec($self->network->{'addr'}, 0, 32);
+    my $last = vec($self->broadcast->{'addr'}, 0, 32);
+    my $i;
+    my @result;
+    for($i = $first; $i <= $last; ++$i) {
+	my $addr = '';
+	vec($addr, 0, 32) = $i;
+	push @result, $self->new(_unpack_address($addr), 
+				 _unpack_address($self->{'mask'}));
+    }
+    @result;
+}
+
 sub network {
     my $self = shift;
     $self->new (_unpack_address($self->{'addr'} & $self->{'mask'}), 
@@ -182,55 +220,39 @@ sub broadcast {
 		_unpack_address($self->{'mask'}));
 }
 
-sub host_enum {
-    my $self = shift;
-    my $first = $self->network->{'addr'};
-    my $last = $self->broadcast->{'addr'};
-    my $i;
-    my @result;
-    foreach $i ($first .. $last) {
-	push @result, $self->new(_unpack_address($i), "32");
-    }
-    @result;
-}
-
-sub enum {
-    my $self = shift;
-    my $first = $self->network->{'addr'};
-    my $last = $self->broadcast->{'addr'};
-    my $i;
-    my @result;
-    foreach $i ($first .. $last) {
-	push @result, $self->new(_unpack_address($i), 
-				 _unpack_address($self->{'mask'}));
-    }
-    @result;
-}
-
 sub range {
-    my $self = @_[0];
+    my $self = $_[0];
     my $ip;
     my $min = $self->new("255.255.255.255");
     my $max = $self->new("0.0.0.0");
     $max->set_addr($self);
 
     foreach $ip (@_) {
-	my $bi_ipn = sprintf("%u", $ip->network->{'addr'});
-	my $bi_ipb = sprintf("%u", $ip->broadcast->{'addr'});
-	my $bi_min = sprintf("%u", $min->{'addr'});
-	my $bi_max = sprintf("%u", $max->{'addr'});
 
-	if ($bi_ipn < $bi_min) {
+				# This comparison is very tricky in some
+				# architectures, so we make it in BigInts
+				# to be safe. - XXXX
+
+	my $bi_ipn = new Math::BigInt vec($ip->network->{'addr'}, 0, 32);
+	my $bi_ipb = new Math::BigInt vec($ip->broadcast->{'addr'}, 0, 32);
+	my $bi_min = new Math::BigInt vec($min->{'addr'}, 0, 32);
+	my $bi_max = new Math::BigInt vec($max->{'addr'}, 0, 32);
+
+	if ($bi_ipn - $bi_min < 0) {
 	    $min->set_addr($ip->network);
 	}
-	if ($bi_ipb > $bi_max) {
+	if ($bi_ipb - $bi_max > 0) {
 	    $max->set_addr($ip->broadcast);
 	}
     }
 
     my @result;
-    foreach $ip ($min->{'addr'} .. $max->{'addr'}) {
-	push @result, $self->new(_unpack_address($ip), "32");
+    for($ip = vec($min->{'addr'}, 0, 32); 
+	$ip <= vec($max->{'addr'}, 0, 32);
+	++$ip) {
+	my $addr = '';
+	vec($addr, 0, 32) = $ip;
+	push @result, $self->new(_unpack_address($addr), "32");
     }
     @result;
 }
@@ -251,21 +273,20 @@ sub set_addr {
 
 sub how_many {
     my $self = shift;
-    $self->broadcast->{'addr'} - $self->network->{'addr'} + 1;
+    vec($self->broadcast->{'addr'}, 0, 32) - 
+	vec($self->network->{'addr'}, 0, 32) + 1;
 }
 
 sub contains {
     my $self = shift;
     my $other = shift;
-    my $self_min = $self->network->{'addr'};
-    my $self_max = $self->broadcast->{'addr'};
-    my $other_min = $other->network->{'addr'};
-    my $other_max = $other->broadcast->{'addr'};
+    my $self_min = new Math::BigInt vec($self->network->{'addr'}, 0, 32);
+    my $self_max = new Math::BigInt vec($self->broadcast->{'addr'}, 0, 32);
+    my $other_min = new Math::BigInt vec($other->network->{'addr'}, 0, 32);
+    my $other_max = new Math::BigInt vec($other->broadcast->{'addr'}, 0, 32);
     $other_min >= $self_min and $other_min <= $self_max
 	and $other_max >= $self_min and $other_max <= $self_max;
 }
-
-# Autoload methods go after =cut, and are processed by the autosplit program.
 
 1;
 __END__
@@ -372,3 +393,4 @@ perl(1).
 
 =cut
 
+    1;

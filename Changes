@@ -4,4 +4,10 @@ Revision history for Perl extension IP::Address.
 	- original version; Basic testing and release to CPAN as
 	version 0.01. This is considered beta software.
 
+0.02  Mon Jul 12
+	- Multiple changes to fix endiannes issues. This code is now
+	moderately tested on Wintel and Sun/Solaris boxes.
+
+	
+
 
